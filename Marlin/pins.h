@@ -2092,7 +2092,7 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
 #define Z_DIR_PIN           0
 #define Z_ENABLE_PIN       37
 #define Z_MAX_PIN          36
-#define Z_MIN_PIN          23 // Probe pin
+#define Z_MIN_PIN           0 // Default: 23 Probe pin
 
 #define E0_STEP_PIN         7
 #define E0_DIR_PIN          6
@@ -2108,7 +2108,7 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
 #define TEMP_0_PIN          2  // Extruder / Analog pin numbering
 #define TEMP_1_PIN         -1
 #define TEMP_2_PIN         -1
-#define TEMP_BED_PIN        0  // Bed / Analog pin numbering
+#define TEMP_BED_PIN       -1  // Default: 0 Bed / Analog pin numbering
 
 #define SDPOWER            -1
 #define SDSS                8 //17

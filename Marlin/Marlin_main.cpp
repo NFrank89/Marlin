@@ -1026,10 +1026,35 @@ static void set_bed_level_equation_3pts(float z_at_pt_1, float z_at_pt_2, float 
 
 #endif // AUTO_BED_LEVELING_GRID
 
+bool touching_print_surface(int threshold) {
+  return rawBedSample() < threshold;
+}
+
 static void run_z_probe() {
     plan_bed_level_matrix.set_to_identity();
 
 #ifdef DELTA
+  #ifdef FSR_BED_LEVELING
+    feedrate = 600; //mm/min
+    float step = 0.05;
+    int direction = -1;
+    // Consider the glass touched if the raw ADC value is reduced by 20% or more.
+    int analog_fsr_untouched = rawBedSample();
+    int threshold = analog_fsr_untouched * 80L / 100;
+    while (!touching_print_surface(threshold)) {
+      destination[Z_AXIS] += step * direction;
+      prepare_move_raw();
+      st_synchronize();
+    }
+    while (step > 0.005) {
+      step *= 0.8;
+      feedrate *= 0.8;
+      direction = touching_print_surface(threshold) ? 1 : -1;
+      destination[Z_AXIS] += step * direction;
+      prepare_move_raw();
+      st_synchronize();
+    }
+  #else
     enable_endstops(true);
     float start_z = current_position[Z_AXIS];
     long start_steps = st_get_position(Z_AXIS);
@@ -1047,6 +1072,7 @@ static void run_z_probe() {
     current_position[Z_AXIS] = mm;
     calculate_delta(current_position);
     plan_set_position(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], current_position[E_AXIS]);
+  #endif
 #else
     feedrate = homing_feedrate[Z_AXIS];
 
@@ -1124,6 +1150,10 @@ static void clean_up_after_endstop_move() {
 
 static void engage_z_probe() {
     // Engage Z Servo endstop if enabled
+    #ifdef FSR_BED_LEVELING
+    return;
+    #endif
+
     #ifdef SERVO_ENDSTOPS
     if (servo_endstops[Z_AXIS] > -1) {
 #if defined (ENABLE_AUTO_BED_LEVELING) && (PROBE_SERVO_DEACTIVATION_DELAY > 0)
@@ -1151,6 +1181,10 @@ static void engage_z_probe() {
 
 static void retract_z_probe() {
     // Retract Z Servo endstop if enabled
+    #ifdef FSR_BED_LEVELING
+    return;
+    #endif
+
     #ifdef SERVO_ENDSTOPS
     if (servo_endstops[Z_AXIS] > -1) {
 #if defined (ENABLE_AUTO_BED_LEVELING) && (PROBE_SERVO_DEACTIVATION_DELAY > 0)
@@ -1211,6 +1245,10 @@ static float probe_pt(float x, float y, float z_before) {
   SERIAL_PROTOCOL(y);
   SERIAL_PROTOCOLPGM(" z: ");
   SERIAL_PROTOCOL(measured_z);
+#ifdef FSR_BED_LEVELING
+  SERIAL_PROTOCOLPGM(" FSR: ");
+  SERIAL_PROTOCOL(rawBedSample());
+#endif
   SERIAL_PROTOCOLPGM("\n");
   return measured_z;
 }
@@ -1920,6 +1958,7 @@ void process_commands()
 
 
 #endif // AUTO_BED_LEVELING_GRID
+            do_blocking_move_to(MANUAL_X_HOME_POS, MANUAL_Y_HOME_POS, Z_RAISE_AFTER_PROBING);
             st_synchronize();
 
           #ifndef SERVO_ENDSTOPS
